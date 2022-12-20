@@ -1,2 +1,0 @@
-# matchengine
-Just an exercise
