@@ -143,10 +143,10 @@ func (p *heap) Insert(order *Order) {
 
 type Order struct {
 	next   *Order
+	Status Status
 	Id     uint32
 	Price  uint32
 	Volume uint32
-	Status Status
 	IsBuy  bool
 }
 
@@ -178,11 +178,11 @@ func NewBuy(id, price, amount uint32) *Order {
 }
 
 type Bookkeeping struct {
-	prices    []*heap           //  linked list
-	orders    map[uint32]*Order // keep a map of orders to find them for cancel
-	actionsCh chan<- *Action    // main communication channel
-	asks      uint32            // estimates of the lowest ask price and the highest bid price currently in the order book
-	bids      uint32            //
+	orders    map[uint32]*Order
+	actionsCh chan<- *Action
+	prices    []*heap
+	asks      uint32
+	bids      uint32
 }
 
 func NewBookkeeper(maximumPrice uint32, actionsCh chan<- *Action) *Bookkeeping {
