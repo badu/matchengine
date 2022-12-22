@@ -177,17 +177,17 @@ func NewBuy(id, price, amount uint32) *Order {
 	return &Order{Id: id, IsBuy: true, Price: price, Volume: amount, Status: NEW}
 }
 
-type Bookkeeping struct {
+type Market struct {
 	orders    map[uint32]*Order
 	actionsCh chan<- *Action
 	prices    []*heap
-	asks      uint32
-	bids      uint32
+	sales     uint32
+	offers    uint32
 }
 
-func NewBookkeeper(maximumPrice uint32, actionsCh chan<- *Action) *Bookkeeping {
-	result := Bookkeeping{
-		asks:      maximumPrice,
+func NewMarket(maximumPrice uint32, actionsCh chan<- *Action) *Market {
+	result := Market{
+		sales:     maximumPrice,
 		actionsCh: actionsCh,
 		orders:    make(map[uint32]*Order),
 	}
@@ -198,7 +198,7 @@ func NewBookkeeper(maximumPrice uint32, actionsCh chan<- *Action) *Bookkeeping {
 	return &result
 }
 
-func (b *Bookkeeping) TakeOrder(order *Order) error {
+func (b *Market) TakeOrder(order *Order) error {
 	if order.Volume <= 0 {
 		return errors.New("volume cannot be less or equal to zero")
 	}
@@ -216,49 +216,49 @@ func (b *Bookkeeping) TakeOrder(order *Order) error {
 	return nil
 }
 
-func (b *Bookkeeping) open(order *Order) {
+func (b *Market) open(order *Order) {
 	prices := b.prices[order.Price]
 	prices.Insert(order)
 	order.Status = OPEN
 	b.orders[order.Id] = order
 
-	if order.IsBuy && order.Price > b.bids {
-		b.bids = order.Price
+	if order.IsBuy && order.Price > b.offers {
+		b.offers = order.Price
 		return
 	}
 
-	if !order.IsBuy && order.Price < b.asks {
-		b.asks = order.Price
+	if !order.IsBuy && order.Price < b.sales {
+		b.sales = order.Price
 	}
 }
 
-func (b *Bookkeeping) Buy(order *Order) {
-	for b.asks < order.Price && order.Volume > 0 {
-		prices := b.prices[b.asks]
+func (b *Market) Buy(order *Order) {
+	for b.sales < order.Price && order.Volume > 0 {
+		prices := b.prices[b.sales]
 		head := prices.head
 		for head != nil {
 			b.fill(order, head)
 			head = head.next
 			prices.head = head
 		}
-		b.asks++
+		b.sales++
 	}
 }
 
-func (b *Bookkeeping) Sell(order *Order) {
-	for b.bids >= order.Price && order.Volume > 0 {
-		prices := b.prices[b.bids]
+func (b *Market) Sell(order *Order) {
+	for b.offers >= order.Price && order.Volume > 0 {
+		prices := b.prices[b.offers]
 		head := prices.head
 		for head != nil {
 			b.fill(order, head)
 			head = head.next
 			prices.head = head
 		}
-		b.bids--
+		b.offers--
 	}
 }
 
-func (b *Bookkeeping) fill(order, fromOrder *Order) {
+func (b *Market) fill(order, fromOrder *Order) {
 	if fromOrder.Volume >= order.Volume {
 		b.actionsCh <- NewFilledAction(order, fromOrder)
 		fromOrder.Volume -= order.Volume
@@ -276,7 +276,7 @@ func (b *Bookkeeping) fill(order, fromOrder *Order) {
 	}
 }
 
-func (b *Bookkeeping) Cancel(orderID uint32) {
+func (b *Market) Cancel(orderID uint32) {
 	b.actionsCh <- NewCancelAction(orderID)
 	if o, ok := b.orders[orderID]; ok {
 		// If this is the last order at a particular price point we need to update the bid / ask!
@@ -288,6 +288,6 @@ func (b *Bookkeeping) Cancel(orderID uint32) {
 	b.actionsCh <- NewCancelledAction(orderID)
 }
 
-func (b *Bookkeeping) Finish() {
+func (b *Market) Finish() {
 	b.actionsCh <- NewDoneAction()
 }

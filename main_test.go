@@ -46,7 +46,7 @@ func performanceTest(howMany uint32, meanPrice, standardPrice float64, maxAmount
 	actions := make(chan *Action)
 	ctx, cancel := context.WithCancel(context.Background())
 	start := time.Now()
-	book := NewBookkeeper(maxPrice, actions)
+	book := NewMarket(maxPrice, actions)
 
 	fmt.Printf("%d orders took %s to construct bookkeeper.\n", howMany, time.Since(start))
 
@@ -79,7 +79,7 @@ func performanceTest(howMany uint32, meanPrice, standardPrice float64, maxAmount
 
 func TestBookKeeping(t *testing.T) {
 	actions := make(chan *Action)
-	book := NewBookkeeper(MaxPrice, actions)
+	book := NewMarket(MaxPrice, actions)
 	ctx, cancel := context.WithCancel(context.Background())
 	got := make([]*Action, 0)
 	go func() {
@@ -257,7 +257,7 @@ func TestActionListener(t *testing.T) {
 
 	go PrintActionListener(actions, cancel)
 
-	book := NewBookkeeper(MaxPrice, actions)
+	book := NewMarket(MaxPrice, actions)
 	err := book.TakeOrder(NewSell(1, 50, 50))
 	if err != nil {
 		t.Fatalf("error : %#v", err)
